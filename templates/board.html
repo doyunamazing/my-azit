@@ -11,6 +11,7 @@
         .post-header { font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 10px; }
         .post-time { color: #999; font-size: 0.8em; font-weight: normal; margin-left: 8px; }
         .del-btn { color: #ed4956; text-decoration: none; font-size: 0.8em; }
+        .like-btn { text-decoration: none; color: #ed4956; font-size: 1.1em; display: inline-block; margin-top: 10px; }
         textarea { width: 100%; border: 1px solid #dbdbdb; padding: 10px; box-sizing: border-box; border-radius: 3px; resize: none; }
         .btn { background: #0095f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; float: right; margin-top: 10px; font-weight: bold; }
     </style>
@@ -25,7 +26,7 @@
     <div class="container">
         <div class="write-box">
             <form action="/write" method="POST">
-                <textarea name="content" rows="3" placeholder="소식을 전해보세요!" required></textarea>
+                <textarea name="content" rows="3" placeholder="오늘 어떤 일이 있었나요?" required></textarea>
                 <button type="submit" class="btn">공유하기</button>
                 <div style="clear:both;"></div>
             </form>
@@ -43,6 +44,9 @@
                 {% endif %}
             </div>
             <div class="post-content">{{ p.content }}</div>
+            <a href="/like/{{ p.id }}" class="like-btn">
+                ❤️ <span style="color: #262626; font-size: 0.8em;">{{ p.like_count }}</span>
+            </a>
         </div>
         {% endfor %}
     </div>
