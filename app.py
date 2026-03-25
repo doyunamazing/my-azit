@@ -1,86 +1,89 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for
+from datetime import datetime # 시간 계산용
+from flask import Flask, render_template, request, redirect, url_for, session
 
 app = Flask(__name__)
-app.secret_key = "my_secret_key_1234" # 보안용 키 (아무 문자나 가능)
+app.secret_key = "secret_key_1234"
 
-# --- 데이터베이스 연결 함수 ---
 def get_db_connection():
-    # database.db 파일에 연결합니다.
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- 서버 시작 시 데이터베이스 초기화 ---
+# 데이터베이스 초기화 (시간 저장용 created_at 칸 추가)
 def init_db():
     conn = get_db_connection()
-    # posts 테이블이 없으면 새로 만듭니다 (id, 작성자, 내용)
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user TEXT NOT NULL,
-            content TEXT NOT NULL
-        )
-    ''')
+    conn.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT)')
+    conn.execute('CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, content TEXT, created_at TEXT)')
     conn.commit()
     conn.close()
 
 init_db()
 
-# 임시 회원 목록 (나중에 회원가입 기능을 만들면 DB로 옮길 수 있어요!)
-users = {
-    "test@email.com": "1234",
-    "admin": "1234",
-    "friend": "0000"
-}
-
-# --- 페이지 경로 설정 ---
-
-# 1. 메인 페이지 (로그인 화면)
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# 2. 로그인 처리
+@app.route('/signup', methods=['POST'])
+def signup():
+    email = request.form.get('email')
+    pwd = request.form.get('password')
+    try:
+        conn = get_db_connection()
+        conn.execute('INSERT INTO users (email, password) VALUES (?, ?)', (email, pwd))
+        conn.commit()
+        conn.close()
+        return "<script>alert('가입 완료! 로그인 해주세요.'); location.href='/';</script>"
+    except:
+        return "<script>alert('이미 있는 아이디입니다.'); history.back();</script>"
+
 @app.route('/login', methods=['POST'])
 def login():
     email = request.form.get('email')
     pwd = request.form.get('password')
-    
-    if email in users and users[email] == pwd:
-        # 로그인 성공 시 게시판으로 이동 (사용자 이름을 주소에 담아 보냄)
-        return redirect(url_for('board', user_email=email))
-    else:
-        return "<h1>로그인 정보가 틀렸습니다!</h1><a href='/'>다시 시도</a>"
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE email = ? AND password = ?', (email, pwd)).fetchone()
+    conn.close()
+    if user:
+        session['user'] = email
+        return redirect(url_for('board'))
+    return "<script>alert('로그인 실패!'); history.back();</script>"
 
-# 3. 게시판 페이지 (피드 보기)
 @app.route('/board')
 def board():
-    user_email = request.args.get('user_email')
-    
-    # DB에서 모든 글을 가져와서 최신순(id 역순)으로 정렬
+    if 'user' not in session: return redirect(url_for('home'))
     conn = get_db_connection()
     db_posts = conn.execute('SELECT * FROM posts ORDER BY id DESC').fetchall()
     conn.close()
-    
-    return render_template('board.html', user=user_email, all_posts=db_posts)
+    return render_template('board.html', user=session['user'], all_posts=db_posts)
 
-# 4. 글쓰기 처리
 @app.route('/write', methods=['POST'])
 def write():
-    user_email = request.form.get('user')
     content = request.form.get('content')
-    
-    if content:
+    if content and 'user' in session:
+        now = datetime.now().strftime('%m-%d %H:%M') # "월-일 시:분" 형식
         conn = get_db_connection()
-        conn.execute('INSERT INTO posts (user, content) VALUES (?, ?)', (user_email, content))
+        conn.execute('INSERT INTO posts (user, content, created_at) VALUES (?, ?, ?)', 
+                     (session['user'], content, now))
         conn.commit()
         conn.close()
-    
-    return redirect(url_for('board', user_email=user_email))
+    return redirect(url_for('board'))
 
-# --- 서버 실행 설정 (외부 접속 허용) ---
+@app.route('/delete/<int:post_id>')
+def delete(post_id):
+    if 'user' not in session: return redirect(url_for('home'))
+    conn = get_db_connection()
+    conn.execute('DELETE FROM posts WHERE id = ? AND user = ?', (post_id, session['user']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('board'))
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('home'))
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
