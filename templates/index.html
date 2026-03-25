@@ -1,25 +1,42 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>아지트 로그인</title>
+    <title>아지트 로그인/가입</title>
     <style>
         body { background-color: #fafafa; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-box { background: white; border: 1px solid #dbdbdb; padding: 40px; width: 350px; text-align: center; border-radius: 3px; }
-        h1 { font-family: 'Arial', sans-serif; font-style: italic; font-size: 2.5em; color: #262626; margin-bottom: 30px; }
-        input { width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid #dbdbdb; background: #fafafa; border-radius: 3px; box-sizing: border-box; font-size: 12px; }
-        button { width: 100%; background-color: #0095f6; color: white; border: none; padding: 7px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        button:hover { background-color: #1877f2; }
+        .box { background: white; border: 1px solid #dbdbdb; padding: 30px; width: 350px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #dbdbdb; background: #fafafa; border-radius: 3px; box-sizing: border-box; }
+        button { width: 100%; background-color: #0095f6; color: white; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .toggle { color: #0095f6; cursor: pointer; font-size: 0.85em; margin-top: 15px; }
     </style>
 </head>
 <body>
-    <div class="login-box">
+    <div class="box" id="loginBox">
         <h1>Our Azit</h1>
         <form action="/login" method="POST">
-            <input type="text" name="email" placeholder="사용자 이름 또는 이메일" required>
+            <input type="text" name="email" placeholder="이메일" required>
             <input type="password" name="password" placeholder="비밀번호" required>
             <button type="submit">로그인</button>
         </form>
+        <p class="toggle" onclick="toggle()">계정이 없으신가요? 가입하기</p>
     </div>
+
+    <div class="box" id="signupBox" style="display:none;">
+        <h1>회원가입</h1>
+        <form action="/signup" method="POST">
+            <input type="text" name="email" placeholder="사용할 이메일" required>
+            <input type="password" name="password" placeholder="비밀번호 설정" required>
+            <button type="submit" style="background-color: #00ce4c;">가입하기</button>
+        </form>
+        <p class="toggle" onclick="toggle()">이미 계정이 있나요? 로그인</p>
+    </div>
+
+    <script>
+        function toggle() {
+            document.getElementById('loginBox').style.display = document.getElementById('loginBox').style.display === 'none' ? 'block' : 'none';
+            document.getElementById('signupBox').style.display = document.getElementById('signupBox').style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
 </body>
 </html>
