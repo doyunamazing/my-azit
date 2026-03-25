@@ -2,7 +2,8 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>피드</title>
+    <title>실시간 아지트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body { background-color: #fafafa; font-family: sans-serif; margin: 0; padding-top: 60px; }
         .nav { background: white; border-bottom: 1px solid #dbdbdb; position: fixed; top: 0; width: 100%; height: 50px; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
@@ -10,8 +11,6 @@
         .write-box, .post { background: white; border: 1px solid #dbdbdb; padding: 15px; margin-bottom: 15px; border-radius: 3px; }
         .post-header { font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 10px; }
         .post-time { color: #999; font-size: 0.8em; font-weight: normal; margin-left: 8px; }
-        .del-btn { color: #ed4956; text-decoration: none; font-size: 0.8em; }
-        .like-btn { text-decoration: none; color: #ed4956; font-size: 1.1em; display: inline-block; margin-top: 10px; }
         textarea { width: 100%; border: 1px solid #dbdbdb; padding: 10px; box-sizing: border-box; border-radius: 3px; resize: none; }
         .btn { background: #0095f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; float: right; margin-top: 10px; font-weight: bold; }
     </style>
@@ -25,30 +24,50 @@
     
     <div class="container">
         <div class="write-box">
-            <form action="/write" method="POST">
-                <textarea name="content" rows="3" placeholder="오늘 어떤 일이 있었나요?" required></textarea>
-                <button type="submit" class="btn">공유하기</button>
-                <div style="clear:both;"></div>
-            </form>
+            <textarea id="content" rows="3" placeholder="실시간으로 대화해요!" required></textarea>
+            <button onclick="sendPost()" class="btn">공유하기</button>
+            <div style="clear:both;"></div>
         </div>
 
-        {% for p in all_posts %}
-        <div class="post">
-            <div class="post-header">
-                <div>
-                    <span>👤 {{ p.user }}</span>
-                    <span class="post-time">{{ p.created_at }}</span>
+        <div id="post-list">
+            {% for p in all_posts %}
+            <div class="post">
+                <div class="post-header">
+                    <span>👤 {{ p.user }} <span class="post-time">{{ p.created_at }}</span></span>
                 </div>
-                {% if p.user == user %}
-                <a href="/delete/{{ p.id }}" class="del-btn" onclick="return confirm('삭제할까요?')">삭제</a>
-                {% endif %}
+                <div class="post-content">{{ p.content }}</div>
             </div>
-            <div class="post-content">{{ p.content }}</div>
-            <a href="/like/{{ p.id }}" class="like-btn">
-                ❤️ <span style="color: #262626; font-size: 0.8em;">{{ p.like_count }}</span>
-            </a>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
+
+    <script>
+        var socket = io();
+        var currentUser = "{{ user }}";
+
+        // 서버에 글 보내기
+        function sendPost() {
+            var content = document.getElementById('content').value;
+            if(content) {
+                socket.emit('new_post', {content: content});
+                document.getElementById('content').value = '';
+            }
+        }
+
+        // 서버에서 새 글 신호 받으면 화면에 추가
+        socket.on('render_post', function(data) {
+            var postList = document.getElementById('post-list');
+            var newPost = document.createElement('div');
+            newPost.className = 'post';
+            newPost.innerHTML = `
+                <div class="post-header">
+                    <span>👤 ${data.user} <span class="post-time">${data.created_at}</span></span>
+                </div>
+                <div class="post-content">${data.content}</div>
+            `;
+            // 최신글이 맨 위로 오게 추가
+            postList.insertBefore(newPost, postList.firstChild);
+        });
+    </script>
 </body>
 </html>
