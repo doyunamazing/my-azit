@@ -2,40 +2,51 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>실시간 아지트</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Azit - 실시간</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body { background-color: #fafafa; font-family: sans-serif; margin: 0; padding-top: 60px; }
         .nav { background: white; border-bottom: 1px solid #dbdbdb; position: fixed; top: 0; width: 100%; height: 50px; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
         .container { max-width: 500px; margin: 0 auto; padding: 10px; }
-        .write-box, .post { background: white; border: 1px solid #dbdbdb; padding: 15px; margin-bottom: 15px; border-radius: 3px; }
-        .post-header { font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 10px; }
-        .post-time { color: #999; font-size: 0.8em; font-weight: normal; margin-left: 8px; }
-        textarea { width: 100%; border: 1px solid #dbdbdb; padding: 10px; box-sizing: border-box; border-radius: 3px; resize: none; }
-        .btn { background: #0095f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; float: right; margin-top: 10px; font-weight: bold; }
+        .write-box, .post { background: white; border: 1px solid #dbdbdb; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .post-header { font-weight: bold; margin-bottom: 10px; font-size: 0.9em; }
+        .post-time { color: #999; font-size: 0.8em; font-weight: normal; margin-left: 5px; }
+        .post-content { font-size: 1em; line-height: 1.4; white-space: pre-wrap; }
+        .like-section { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 8px; }
+        .like-btn { cursor: pointer; border: none; background: none; font-size: 1.2em; padding: 0; }
+        .likers-list { font-size: 0.75em; color: #666; margin-top: 4px; font-weight: bold; }
+        textarea { width: 100%; border: 1px solid #dbdbdb; padding: 12px; box-sizing: border-box; border-radius: 5px; resize: none; font-size: 14px; }
+        .btn { background: #0095f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; float: right; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="nav">
         <strong>Our Azit</strong>
-        <span>{{ user }}님</span>
-        <a href="/logout" style="text-decoration:none; color:gray; font-size:0.8em;">로그아웃</a>
+        <span style="font-size: 0.8em;">{{ user }}</span>
+        <a href="/logout" style="text-decoration:none; color:#ed4956; font-size:0.8em; font-weight:bold;">로그아웃</a>
     </div>
     
     <div class="container">
         <div class="write-box">
-            <textarea id="content" rows="3" placeholder="실시간으로 대화해요!" required></textarea>
-            <button onclick="sendPost()" class="btn">공유하기</button>
+            <textarea id="content" rows="3" placeholder="실시간으로 이야기를 나눠요!"></textarea>
+            <button onclick="sendPost()" class="btn">공유</button>
             <div style="clear:both;"></div>
         </div>
 
         <div id="post-list">
             {% for p in all_posts %}
-            <div class="post">
+            <div class="post" id="post-{{ p.id }}">
                 <div class="post-header">
-                    <span>👤 {{ p.user }} <span class="post-time">{{ p.created_at }}</span></span>
+                    👤 {{ p.user }} <span class="post-time">{{ p.created_at }}</span>
                 </div>
                 <div class="post-content">{{ p.content }}</div>
+                <div class="like-section">
+                    <button class="like-btn" onclick="sendLike({{ p.id }})">❤️</button>
+                    <div class="likers-list" id="likers-{{ p.id }}">
+                        {% if p.like_count > 0 %}{{ p.liker_names }}님이 좋아합니다{% endif %}
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -43,30 +54,39 @@
 
     <script>
         var socket = io();
-        var currentUser = "{{ user }}";
 
-        // 서버에 글 보내기
         function sendPost() {
-            var content = document.getElementById('content').value;
-            if(content) {
-                socket.emit('new_post', {content: content});
-                document.getElementById('content').value = '';
+            var el = document.getElementById('content');
+            if(el.value.trim()) {
+                socket.emit('new_post', {content: el.value});
+                el.value = '';
             }
         }
 
-        // 서버에서 새 글 신호 받으면 화면에 추가
+        function sendLike(postId) {
+            socket.emit('like_post', {post_id: postId});
+        }
+
         socket.on('render_post', function(data) {
-            var postList = document.getElementById('post-list');
-            var newPost = document.createElement('div');
-            newPost.className = 'post';
-            newPost.innerHTML = `
-                <div class="post-header">
-                    <span>👤 ${data.user} <span class="post-time">${data.created_at}</span></span>
-                </div>
+            var list = document.getElementById('post-list');
+            var div = document.createElement('div');
+            div.className = 'post';
+            div.id = 'post-' + data.id;
+            div.innerHTML = `
+                <div class="post-header">👤 ${data.user} <span class="post-time">${data.created_at}</span></div>
                 <div class="post-content">${data.content}</div>
-            `;
-            // 최신글이 맨 위로 오게 추가
-            postList.insertBefore(newPost, postList.firstChild);
+                <div class="like-section">
+                    <button class="like-btn" onclick="sendLike(${data.id})">❤️</button>
+                    <div class="likers-list" id="likers-${data.id}"></div>
+                </div>`;
+            list.insertBefore(div, list.firstChild);
+        });
+
+        socket.on('update_likes', function(data) {
+            var el = document.getElementById('likers-' + data.post_id);
+            if(el) {
+                el.innerText = data.like_count > 0 ? data.likers.join(', ') + "님이 좋아합니다" : "";
+            }
         });
     </script>
 </body>
